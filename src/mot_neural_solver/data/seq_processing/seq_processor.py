@@ -264,7 +264,7 @@ class MOTSeqProcessor:
                 reid_embeds.append(reid_out.cpu())
                 frame_nums.append(frame_num)
                 det_ids.append(det_id)
-        print("IT TOOK ", time() - t)
+        #print("IT TOOK ", time() - t)
         print(f"Finished computing embeddings")
 
         det_ids = torch.cat(det_ids, dim=0)
