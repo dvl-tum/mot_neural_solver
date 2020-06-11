@@ -1,0 +1,17 @@
+# We use this file as a Named configuration (see Sacred docs) to modify the entries in
+# configs/tracking_cfg.yaml that need to be changed when not applying Tracktor preprocessing
+# Essentially, we just increase the frame sampling rate and size of graphs that are processed, since we have to
+# rely more heavily on linear interpolation, and we cannot fill trajectory gaps with Tracktor
+
+dataset_params:
+  det_file_name: frcnn_prepr_det
+  frames_per_graph: 25 # Maximum number of frames contained in each graph sampled graph
+  max_detects: 800 # Maximum number of detections allowed
+  top_k_nns: 70  # Top K-nearest neighbors (w.r.t reid score) to which a node can be  connected in the graph
+
+eval_params:
+  add_tracktor_detects: False
+
+  target_fps_dict: # Frame sampling rate for sequences with static/moving camera
+    moving: 15
+    static: 10

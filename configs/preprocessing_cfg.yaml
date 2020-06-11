@@ -1,0 +1,67 @@
+prepr_w_tracktor: True
+
+frcnn_weights: trained_models/frcnn/frcnn_epoch_27.pt.tar
+
+# List of datasets names that will be processed (see tracktor/data/factory.py)
+dataset_names: [mot15_train, mot15_test, mot17_train_17, mot17_test_17]
+
+# Params for preprocessing using FRCNN
+frcnn_prepr_params:
+  nms_thresh: 0.75
+  detect_score_thresh: 0.5
+  seed: 12345
+  det_file_name: frcnn_prepr_det.txt # Name of the output file where results will be stored in {seq_path}/processed_data/det/
+                                     # IMPORTANT: MAKE SURE IT DOES NOT CONTAIN 'tracktor' in it (or manually set
+                                     # eval_params['add_tracktor_detects'] = False in tracking_cfg.yaml
+
+# Params for preprocessing using tracktor
+tracktor_params:
+  det_file_name: tracktor_prepr_det.txt # Name of the output file where results will be stored {seq_path}/processed_data/det/
+                                        # IMPORTANT: Make sure it **DOES** contain tracktor in it
+
+  name: Tracktor++
+  # frcnn or fpn
+  network: fpn
+  seed: 12345
+
+  tracker:
+    # FRCNN score threshold for detections
+    detection_person_thresh: 0.5
+    # FRCNN score threshold for keeping the track alive
+    regression_person_thresh: 0.5
+    # NMS threshold for detection
+    detection_nms_thresh: 0.3
+    # NMS theshold while tracking
+    regression_nms_thresh: 0.6
+    # motion model settings
+    motion_model:
+      enabled: False
+      # average velocity over last n_steps steps
+      n_steps: 1
+      # if true, only model the movement of the bounding box center. If false, width and height are also modeled.
+      center_only: True
+    # DPM or DPM_RAW or 0, raw includes the unfiltered (no nms) versions of the provided detections,
+    # 0 tells the tracker to use private detections (Faster R-CNN)
+    public_detections: True
+    # How much last appearance features are to keep
+    max_features_num: 10
+    # Do camera motion compensation
+    do_align: True
+    # NEW ARG: determines whether we perform CMC at full resolution or based on an image pyramid (approx 6 x faster)
+    pyramid_align: True
+    # NEW ARG: Number of levels in the pyramid for CMC
+    pyramid_nol: 5
+    # Which warp mode to use (cv2.MOTION_EUCLIDEAN, cv2.MOTION_AFFINE, ...)
+    warp_mode: cv2.MOTION_EUCLIDEAN
+    # maximal number of iterations (original 50)
+    number_of_iterations: 100
+    # Threshold increment between two iterations (original 0.001)
+    termination_eps: 0.00001
+    # Use siamese network to do reid
+    do_reid: False
+    # How much timesteps dead tracks are kept and cosidered for reid
+    inactive_patience: 10
+    # How similar do image and old track need to be to be considered the same person
+    reid_sim_threshold: 2.0
+    # How much IoU do track and image need to be considered for matching
+    reid_iou_threshold: 0.2
