@@ -1,6 +1,6 @@
 # Learning a Neural Solver for Multiple Object Tracking
 
-This the official implementation of our CVPR 2020 paper **Learning a Neural Solver for Multiple Object Tracking** ([Guillem Brasó](https://dvl.in.tum.de/team/braso/), [Laura Leal-Taixe](https://dvl.in.tum.de/team/lealtaixe/)) [https://arxiv.org/abs/1903.05625]. 
+This the official implementation of our **CVPR 2020** paper *Learning a Neural Solver for Multiple Object Tracking* ([Guillem Brasó](https://dvl.in.tum.de/team/braso/), [Laura Leal-Taixe](https://dvl.in.tum.de/team/lealtaixe/)) [https://arxiv.org/abs/1903.05625]. 
 
  
 
@@ -22,7 +22,7 @@ This the official implementation of our CVPR 2020 paper **Learning a Neural Solv
 3. (**OPTIONAL**) Modify the variables `DATA_PATH`, and `OUTPUT_PATH` in  `src/mot_neural_solver/path_cfg.py` so that they are set to 
 your preferred locations for storing datasets and output results, respectively. By default, these paths will be in this project's root under folders 
 named `data` and `output`, respectively.  
-4. Download the [MOTchallenge data](https://motchallenge.net/) by running:
+4. Download the [MOTChallenge data](https://motchallenge.net/) by running:
     ```
     bash scripts/setup/download_motcha.sh
     ```
@@ -106,7 +106,7 @@ The resulting output files yield the following `MOT17` metrics on the test set:
 | **Test**  |     58.4     |     62.1       |    17836     | 214869     |     1146     |     655 (27.8%)     |  793 (33.7%) |
 
 Note that these results show a slight difference with respect to the ones reported in the paper. Specifically, IDF1 has improved by 0.5 points,
-and MOTA has decreased by 0.4 points. This change is due to using a newer pytorch version and small code and differences introduced while cleaning-up.
+and MOTA has decreased by 0.4 points. This change is due to using a newer pytorch version and small code differences introduced while cleaning-up.
 
 ## Cross-Validation
 As explained in the paper, we perform cross-validation to report the metrics of ablation experiments.
