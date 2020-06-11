@@ -24,7 +24,7 @@ your preferred locations for storing datasets and output results, respectively. 
 named `data` and `output`, respectively.  
 4. Download the [MOTchallenge data](https://motchallenge.net/) by running:
     ```
-    bash scripts/setup/download_motcha.py
+    bash scripts/setup/download_motcha.sh
     ```
 5. Download the our reid network, [Tracktor](https://arxiv.org/abs/1903.05625)'s object detector, and our trained models:    
     ```
