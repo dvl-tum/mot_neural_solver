@@ -93,12 +93,7 @@ You can evaluate a trained model on a set of sequences by running:
 ```
 python scripts/evaluate.py 
 ```
-The weights used are determined by the parameter `ckpt_path`. By default, the weights from the model we provide will be 
-used The model weights from the trained model we provide will be used by default, you can use other weights by modifying
-the argument `ckpt_path`. 
-
-The sequences used are determined by `data_splits.test`. By default all `MOT15` and `MOT17` test sequences will be evaluated.
-The resulting output files yield the following `MOT17` metrics on the test set:
+The weights used and sequences tested are determined by parameters `ckpt_path` and `data_splits.test`, respectively. By default, the weights from the model we provide will be used and the `MOT15` and `MOT17` test sequences will be evaluated. The resulting output files yield the following `MOT17` metrics on the train/test set:
 
 |           | MOTA         | IDF1           |       FP     |     FN     |     IDs      |     MT              |     ML       |
 |  :---:    | :---:        |     :---:      |    :---:     | :---:      |    :---:     |   :---:             |  :---:       |
