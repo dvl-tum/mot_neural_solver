@@ -3,7 +3,57 @@ import numpy as np
 import torch
 from torch_scatter import scatter_mean
 
-def get_time_valid_conn_ixs(frame_num, max_frame_dist, use_cuda, return_undirected = True):
+
+def get_time_valid_conn_ixs(frame_num, max_frame_dist, return_undirected = True, use_cuda = False):
+    """
+    Determines the valid connections among nodes (detections) according to their time distance. Valid connections
+    are those for which nodes are not in the same frame, and their time dist is not greater than max_frame_dist.
+    (Does the same as the function above at similar speed but does not require as much memory)
+    Args:
+        frame_num: np.array with shape (num_nodes,), indicating the frame number of each node.
+        max_frame_dist: maximum distance allowed among detections (in number of frames) (if 'max', it is ignored)
+        use_cuda: bool indicates if operation must be performed in GPU
+        return_undirected: bool, determines whether both (i,j) and (j, i) is returned for each edge
+
+    Returns:
+        torch.Tensor with shape (2, num_edges) corresponding to the valid edges
+
+    """
+    assert isinstance(max_frame_dist, (int, np.uint)) or max_frame_dist == 'max'
+
+    device = torch.device("cuda" if torch.cuda.is_available() and use_cuda else "cpu")
+    frame_num = frame_num.to(device)
+    assert (torch.sort(frame_num)[0] == frame_num).all(), "Detections are NOT sorted by timestamp. Graph was not created properly!"
+
+    changepoints = torch.where(frame_num[1:] != frame_num[:-1])[0] + 1
+    changepoints = torch.cat((changepoints, torch.as_tensor([frame_num.shape[0]]).to(changepoints.device)))
+    all_det_ixs = torch.arange(frame_num.shape[0], device=frame_num.device)
+
+    edge_ixs = []
+    for start_frame_ix, end_frame_ix in zip(changepoints[:-1], changepoints[1:]):
+        curr_frame_ixs = all_det_ixs[start_frame_ix: end_frame_ix]
+        curr_frame_num = frame_num[curr_frame_ixs[0]]
+
+        # Update past frames
+        if max_frame_dist != 'max':
+            past_frames_ixs = torch.where(torch.abs(frame_num[:start_frame_ix] - curr_frame_num) <= max_frame_dist)[0]
+
+        else:
+            past_frames_ixs = all_det_ixs[:start_frame_ix]
+
+        edge_ixs.append(torch.cartesian_prod(past_frames_ixs, curr_frame_ixs))
+
+    edge_ixs = torch.cat(edge_ixs).T
+
+    if return_undirected:
+        return edge_ixs
+
+    else:
+        return torch.cat((edge_ixs, torch.stack((edge_ixs[1], edge_ixs[0]))), dim=1)
+
+
+
+def get_time_valid_conn_ixs_old(frame_num, max_frame_dist, use_cuda, return_undirected = True):
     """
     Determines the valid connections among nodes (detections) according to their time distance. Valid connections
     are those for which nodes are not in the same frame, and their time dist is not greater than max_frame_dist.
@@ -123,44 +173,6 @@ def compute_edge_feats_dict(edge_ixs, det_df, fps, use_cuda):
 
     return edge_feats_dict
 
-def construct_net_flow_id_matrix(det_df):
-    """
-    Constructs a dense adjacency matrix where each entry (i, j) is a binary label indicating whether nodes (i.e.
-    detections) i and j are connected by an active edge or not. Recall that active edges are those for which detections
-    are within the same trajectory and are consecutive in time.
-    Args:
-        det_df: processed detections pd.DataFrame
-
-    Returns:
-        np.array with shape (num_detects, num_detects
-
-    """
-
-    # For every pedestrian ID, get a list with its sorted frame appearances
-    det_df['node_id'] = np.arange(det_df.shape[0])
-    id_frame_reixed = det_df.set_index(['id', 'frame'])
-    apps_per_id = det_df.groupby('id')['frame'].agg(lambda x: sorted(list(x.unique())))
-
-    # Iterate over IDs, and recover the node ID corresponding to each consecutive appearances
-    active_edges_list = []
-    for id, frame_apps in apps_per_id.iteritems():
-
-        if id != -1: # False Positives are not connected!
-            # print(id, frame_apps)
-            node_ids = id_frame_reixed.loc[id].loc[frame_apps]['node_id'].values
-            if isinstance(node_ids, np.ndarray):
-                active_edges_list.append(np.vstack((node_ids[:-1], node_ids[1:])))
-                active_edges_list.append(np.vstack((node_ids[1:], node_ids[:-1]))) # Edges labels need to be
-                                                                                   # symmetric
-    # Stack all edges into a single array
-    active_edges = np.hstack(active_edges_list)
-
-    # Build the dense id matrix so that per-edge labels can be easily recovered.
-    num_nodes = det_df.shape[0]
-    id_matrix = np.zeros((num_nodes, num_nodes))
-    id_matrix[active_edges[0], active_edges[1]] = 1
-
-    return id_matrix
 
 def to_undirected_graph(mot_graph, attrs_to_update = ('edge_preds', 'edge_labels')):
     """

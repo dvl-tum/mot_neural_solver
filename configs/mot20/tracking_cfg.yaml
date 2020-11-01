@@ -1,0 +1,17 @@
+ckpt_path: 'trained_models/graph_nets/mot20_mot_mpnet_epoch_021.ckpt' # Only used during evaluation
+
+dataset_params:
+  max_detects: 3000 # Maximum number of detections allowed
+  top_k_nns:  80 # Top K-nearest neighbors (w.r.t reid score) to which a node can be  connected in the graph
+  max_feet_vel: 0.75
+
+eval_params:
+  max_dets_per_graph_seq: 25000 # Entire sequences are split into smaller subsequences of up to max_dets_per_graph_seq
+
+train_params:
+  batch_size: 6
+
+data_splits:
+  train: mot20_train_gt+
+  val: []
+  test: mot20_test

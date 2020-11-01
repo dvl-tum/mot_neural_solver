@@ -70,12 +70,17 @@ MOV_CAMERA_DICT = { 'MOT17-02-GT': False,
 
                     'MOT17-01-SDP': False,
                     'MOT17-01-FRCNN': False,
-                    'MOT17-01-DPM': False}
+                    'MOT17-01-DPM': False
+                    }
+# MOT20 (there is small camera movement in some sequences, but it's ok)
+MOV_CAMERA_DICT.update({f'MOT20-{seq_num:02}{gt}': False for seq_num in range(1, 9) for gt in ('', '-GT')})
+
+
 
 DET_COL_NAMES = ('frame', 'id', 'bb_left', 'bb_top', 'bb_width', 'bb_height', 'conf')
 GT_COL_NAMES = ('frame', 'id', 'bb_left', 'bb_top', 'bb_width', 'bb_height', 'conf', 'label', 'vis')
 
-def _add_frame_path(det_df, seq_name, data_root_path):
+def _add_frame_path_mot17(det_df, seq_name, data_root_path):
     # Add each image's path from  MOT17Det data dir
     seq_name_wo_dets = '-'.join(seq_name.split('-')[:-1])
     det_seq_path = osp.join(data_root_path.replace('Labels', 'Det'), seq_name_wo_dets)
@@ -101,7 +106,7 @@ def _build_scene_info_dict_mot17(seq_name, data_root_path, dataset_params):
                      'has_gt': osp.exists(osp.join(data_root_path, seq_name, 'gt'))}
     return seq_info_dict
 
-def get_mot17_det_df(seq_name, data_root_path, dataset_params):
+def get_mot_det_df(seq_name, data_root_path, dataset_params):
 
     seq_path = osp.join(data_root_path, seq_name)
     detections_file_path = osp.join(seq_path, f"det/{dataset_params['det_file_name']}.txt")
@@ -119,7 +124,13 @@ def get_mot17_det_df(seq_name, data_root_path, dataset_params):
         det_df['tracktor_id'] = det_df['id']
 
     # Add each image's path (in MOT17Det data dir)
-    _add_frame_path(det_df, seq_name, data_root_path)
+    if 'MOT17' in seq_name:
+        _add_frame_path_mot17(det_df, seq_name, data_root_path)
+
+    else:
+        det_df['frame_path'] = det_df['frame'].apply(lambda frame_num: osp.join(seq_path, f'img1/{frame_num:06}.jpg'))
+
+    assert osp.exists(det_df['frame_path'].iloc[0])
 
     seq_info_dict = _build_scene_info_dict_mot17(seq_name, data_root_path, dataset_params)
     seq_info_dict['is_gt'] = False
@@ -147,17 +158,22 @@ def get_mot17_det_df(seq_name, data_root_path, dataset_params):
 
     return det_df, seq_info_dict, gt_df
 
-def get_mot17_det_df_from_gt(seq_name, data_root_path, dataset_params):
+def get_mot_det_df_from_gt(seq_name, data_root_path, dataset_params):
 
-    # Create a dir to store Ground truth data in case if does not exist yet
+    # Create a dir to store Ground truth data in case it does not exist yet
     seq_path = osp.join(data_root_path, seq_name)
     if not osp.exists(seq_path):
         os.mkdir(seq_path)
 
         # Copy ground truth and seq info from a seq that has this ground truth.
-        dpm_seq_path = osp.join(data_root_path, seq_name[:-2] + 'DPM')
-        shutil.copy(osp.join(dpm_seq_path, 'seqinfo.ini'), osp.join(seq_path, 'seqinfo.ini'))
-        shutil.copytree(osp.join(dpm_seq_path, 'gt'), osp.join(seq_path, 'gt'))
+        if 'MOT17' in seq_name: # For MOT17 we use e.g. the seq with DPM detections (any will do)
+            src_seq_path = osp.join(data_root_path, seq_name[:-2] + 'DPM')
+
+        else: # Otherwise just use the actual sequence
+            src_seq_path = osp.join(data_root_path, seq_name[:-3])
+
+        shutil.copy(osp.join(src_seq_path, 'seqinfo.ini'), osp.join(seq_path, 'seqinfo.ini'))
+        shutil.copytree(osp.join(src_seq_path, 'gt'), osp.join(seq_path, 'gt'))
 
     detections_file_path = osp.join(data_root_path, seq_name, f"gt/gt.txt")
     det_df = pd.read_csv(detections_file_path, header=None)
@@ -172,13 +188,19 @@ def get_mot17_det_df_from_gt(seq_name, data_root_path, dataset_params):
     # VERY IMPORTANT: Filter out non Target Classes (e.g. vehicles, occluderst, etc.) (see: https://arxiv.org/abs/1603.00831)
     det_df = det_df[det_df['label'].isin([1, 2])].copy()
 
-    _add_frame_path(det_df, seq_name, data_root_path)
+
+    if 'MOT17' in seq_name:
+        _add_frame_path_mot17(det_df, seq_name, data_root_path)
+
+    else:
+        det_df['frame_path'] = det_df['frame'].apply(lambda frame_num: osp.join(seq_path[:-3], f'img1/{frame_num:06}.jpg'))
+    assert osp.exists(det_df['frame_path'].iloc[0])
+
     seq_info_dict = _build_scene_info_dict_mot17(seq_name, data_root_path, dataset_params)
 
     # Correct the detections file name to contain the 'gt' as name
     seq_info_dict['det_file_name'] = 'gt'
     seq_info_dict['is_gt'] = True
-
 
     # Store the gt file in the common evaluation path
     gt_file_path = osp.join(seq_path, f"gt/gt.txt")

@@ -16,15 +16,14 @@ SETTINGS.CONFIG.READ_ONLY_CONFIG=False
 
 ex = Experiment()
 ex.add_config('configs/tracking_cfg.yaml')
-ex.add_config({'ckpt_path': 'trained_models/graph_nets/mot_mpnet_epoch_006.ckpt',
-               'run_id': 'evaluation',
+ex.add_config({'run_id': 'evaluation',
                'add_date': True,
                'precomputed_embeddings': True})
 
 @ex.automain
 def main(_config, _run):
 
-    sacred.commands.print_config(_run)
+    #sacred.commands.print_config(_run) # No need to print config, as it's overwritten by the one from the ckpt.
     make_deterministic(12345)
 
     run_str, save_dir = get_run_str_and_save_dir(_config['run_id'], None, _config['add_date'])
@@ -35,7 +34,6 @@ def main(_config, _run):
     model.hparams.update({'eval_params':_config['eval_params'],
                           'data_splits':_config['data_splits']})
     model.hparams['dataset_params']['precomputed_embeddings'] = _config['precomputed_embeddings']
-
 
     # Get output MOT results files
     test_dataset = model.test_dataset()

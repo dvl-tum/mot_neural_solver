@@ -42,7 +42,7 @@ def compute_mot_metrics(gt_path, out_mot_files_path, seqs, print_results = True)
         gt_path: path where MOT ground truth files are stored. Each gt file must be stored as
         <SEQ NAME>/gt/gt.txt
         out_mot_files_path: path where output files are stored. Each file must be named <SEQ NAME>.txt
-        seqs: Names of sequences to be evalluated
+        seqs: Names of sequences to be evaluated
 
     Returns:
         Individual and overall MOTmetrics for all sequeces
@@ -118,6 +118,7 @@ class MOTMetricsLogger(Callback):
         # Compute oracle results if needed
         if self.available_data and self.compute_oracle_results:
             mot_metrics_summary = self._compute_mot_metrics(trainer.current_epoch, pl_module, oracle_results=True)
+            print(mot_metrics_summary)
             oracle_path = osp.join(self.output_metrics_dir, 'oracle.npy')
             save_pickle(mot_metrics_summary.to_dict(), oracle_path)
             trainer.oracle_metrics = mot_metrics_summary

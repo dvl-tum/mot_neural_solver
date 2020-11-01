@@ -1,3 +1,4 @@
+ckpt_path: trained_models/graph_nets/mot_mpnet_epoch_006.ckpt
 train_params:
   batch_size: 8
   num_epochs: 25
@@ -83,7 +84,7 @@ data_splits: # See src/mot_neural_solver/data/splits.py
 eval_params:
   # Logging / Metrics reporting params
   tensorboard: False
-  check_val_every_n_epoch: 2
+  check_val_every_n_epoch: 9999
   val_percent_check: 0.15 # Percentage of the entire dataset used each time that validation loss is computed
   mot_metrics_to_log: ['mota', 'norm_mota', 'idf1', 'norm_idf1', 'num_switches', 'num_misses', 'num_false_positives', 'num_fragmentations', 'constr_sr']
   metrics_to_log: ['loss', 'precision', 'recall', 'constr_sr']
@@ -94,6 +95,8 @@ eval_params:
   best_method_criteria: 'idf1'
 
   # Inference Params
+  max_dets_per_graph_seq: 40000 # Entire sequences are split into smaller subsequences of up to max_dets_per_graph_seq
+                                # detections to avoid loading into (GPU) memory massive graphs.
   rounding_method: exact # Determines whether an LP is used for rounding ('exact') or a greedy heuristic ('greedy')
   solver_backend: pulp # Determines package used to solve the LP, (Gurobi requires a license, pulp does not)
   set_pruned_edges_to_inactive: False # Determines whether pruning an edge during inference has the same effect

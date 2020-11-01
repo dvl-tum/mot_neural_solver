@@ -46,7 +46,6 @@ class MOTNeuralSolver(pl.LightningModule):
                                 osp.join(OUTPUT_PATH, self.hparams['graph_model_params']['cnn_params']['model_weights_path'][cnn_arch]))
         cnn_model.return_embeddings = True
 
-
         return model, cnn_model
 
     def _get_data(self, mode, return_data_loader = True):
@@ -145,16 +144,19 @@ class MOTNeuralSolver(pl.LightningModule):
                              eval_params=self.hparams['eval_params'],
                              dataset_params=self.hparams['dataset_params'])
 
-        constr_satisf_rate = pd.Series(dtype=float)
+        constraint_sr = pd.Series(dtype=float)
         for seq_name in dataset.seq_names:
+            print("Tracking", seq_name)
             if verbose:
                 print("Tracking sequence ", seq_name)
-            tracker.track(seq_name)
-            constr_satisf_rate[seq_name] = tracker.full_graph.constr_satisf_rate
+
             os.makedirs(output_files_dir, exist_ok=True)
-            tracker.save_results_to_file(osp.join(output_files_dir, seq_name + '.txt'))
+            constraint_sr[seq_name] = tracker.track(seq_name, output_path=osp.join(output_files_dir, seq_name + '.txt'))
+
             if verbose:
                 print("Done! \n")
-        constr_satisf_rate['OVERALL'] = constr_satisf_rate.mean()
 
-        return constr_satisf_rate
+
+        constraint_sr['OVERALL'] = constraint_sr.mean()
+
+        return constraint_sr

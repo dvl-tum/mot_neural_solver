@@ -1,0 +1,11 @@
+#frcnn_weights: trained_models/frcnn/frcnn_epoch_27.pt.tar
+frcnn_weights: trained_models/frcnn/mot20_frcnn_epoch_27.pt.tar
+
+# List of datasets names that will be processed (see tracktor/data/factory.py)
+dataset_names: [mot20_train, mot20_test]
+
+# Params for preprocessing using tracktor
+tracktor_params:
+  tracker:
+    # Do camera motion compensation
+    do_align: False # All sequences have a static camera

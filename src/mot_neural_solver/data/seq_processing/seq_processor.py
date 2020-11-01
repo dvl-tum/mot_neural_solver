@@ -13,9 +13,9 @@ Once these three objects have been loaded, the rest of the sequence processing (
 detections, storing embeddings, etc.) is performed in common, by the methods in MOTSeqProcessor
 
 If you want to add new/custom sequences:
-    1) Store with the same structure as e.g. MOT challenge mot_seqs (one directory per sequence):
+    1) Store with the same structure as e.g. MOT challenge mot_seqs (one directo    ry per sequence):
     2) Add its sequences' names (dir names) and sequence type to the corresponding/new 'seq_type' in _SEQ_TYPES
-    3) Modify / write a det_df loader function for the new 'seq_type' (see MOT17loader.py as an example)
+    3) Modify / write a det_df loader function for the new 'seq_type' (see MOTCha_loader.py as an example)
     If you had to write a new loader function:
         4) Add the new (seq_type, det_df loader function) to SEQ_TYPE_DETS_DF_LOADER
     Make sure that 'fps' and other metadata is available in the scene_info_dict returned by your loader
@@ -25,8 +25,8 @@ import numpy as np
 
 from lapsolver import solve_dense
 
-from mot_neural_solver.data.seq_processing.MOT17loader import get_mot17_det_df, get_mot17_det_df_from_gt
-from mot_neural_solver.data.seq_processing.MOT15loader import get_mot15_det_df, get_mot15_det_df_from_gt
+from mot_neural_solver.data.seq_processing.MOTCha_loader import get_mot_det_df, get_mot_det_df_from_gt
+from mot_neural_solver.data.seq_processing.MOT15_loader import get_mot15_det_df, get_mot15_det_df_from_gt
 from mot_neural_solver.utils.iou import iou
 from mot_neural_solver.utils.rgb import BoundingBoxDataset
 
@@ -44,34 +44,45 @@ from torch.utils.data import DataLoader
 
 # We define 'sequence types' for different MOT sequences, depending on the kind of processing they require (e.g. file
 # storage structure, etc.). Each different type requires a different loader function that returns a pandas DataFrame
-# with the right format from its detection file (see e.g. MOT17loader.py).
+# with the right format from its detection file (see e.g. MOTCha_loader.py).
 
 # Assign a loader func to each Sequence Type
-_SEQ_TYPE_DETS_DF_LOADER = {'MOT17': get_mot17_det_df,
-                            'MOT17_gt': get_mot17_det_df_from_gt,
+_SEQ_TYPE_DETS_DF_LOADER = {'MOT': get_mot_det_df,
+                            'MOT_gt': get_mot_det_df_from_gt,
                             'MOT15': get_mot15_det_df,
                             'MOT15_gt': get_mot15_det_df_from_gt}
 
 # Determines whether boxes are allowed to have some area outside the image (all GT annotations in MOT15 are inside img
 # hence we crop its detections to also be inside it)
-_ENSURE_BOX_IN_FRAME = {'MOT17': False,
-                        'MOT17_gt': False,
+_ENSURE_BOX_IN_FRAME = {'MOT': False,
+                        'MOT_gt': False,
                         'MOT15': True,
                         'MOT15_gt': False}
 
 
 # We now map each sequence name to a sequence type in _SEQ_TYPES
+_SEQ_TYPES = {}
+
+# MOT20 Sequences
+mot20_seqs = [f'MOT20-{seq_num:02}{det}' for seq_num in (1, 2, 3, 5) for det in ('', '-GT')]
+mot20_seqs += [f'MOT20-{seq_num:02}' for seq_num in (4, 6, 7, 8)]
+for seq_name in mot20_seqs:
+    if 'GT' in seq_name:
+        _SEQ_TYPES[seq_name] = 'MOT_gt'
+
+    else:
+        _SEQ_TYPES[seq_name] = 'MOT'
+
 
 # MOT17 Sequences
-_SEQ_TYPES = {}
 mot17_seqs = [f'MOT17-{seq_num:02}-{det}' for seq_num in (2, 4, 5, 9, 10, 11, 13) for det in ('DPM', 'SDP', 'FRCNN', 'GT')]
 mot17_seqs += [f'MOT17-{seq_num:02}-{det}' for seq_num in (1, 3, 6, 7, 8, 12, 14) for det in ('DPM', 'SDP', 'FRCNN')]
 for seq_name in mot17_seqs:
     if 'GT' in seq_name:
-        _SEQ_TYPES[seq_name] = 'MOT17_gt'
+        _SEQ_TYPES[seq_name] = 'MOT_gt'
 
     else:
-        _SEQ_TYPES[seq_name] = 'MOT17'
+        _SEQ_TYPES[seq_name] = 'MOT'
 
 # MOT15 Sequences 
 mot15_seqs = ['KITTI-17', 'KITTI-13', 'ETH-Sunnyday', 'ETH-Bahnhof', 'PETS09-S2L1', 'TUD-Campus', 'TUD-Stadtmitte']
@@ -111,9 +122,9 @@ class MOTSeqProcessor:
     - Loads a DataFrameWSeqInfo (~pd.DataFrame) from a  detections file (self.det_df) via a the 'det_df_loader' func
     corresponding to the sequence type (mapped via _SEQ_TYPES)
     - Adds Sequence Info to the df (fps, img size, moving/static camera, etc.) as an additional attribute (_get_det_df)
-    - If available, assigns ground truth identities to detection boxes via bipartite matching (_assign_gt)
-    - Stores the df in disk (_store_det_df)
-    - If required, precomputes CNN embeddings for every detected box and stores them to disk (_store_embeddings)
+    - If GT is available, assigns GT identities to the detected boxes via bipartite matching (_assign_gt)
+    - Stores the df on disk (_store_det_df)
+    - If required, precomputes CNN embeddings for every detected box and stores them on disk (_store_embeddings)
 
     The stored information assumes that each MOT sequence has its own directory. Inside it all processed data is
     stored as follows:
@@ -247,36 +258,6 @@ class MOTSeqProcessor:
         assert self.cnn_model is not None
         assert self.dataset_params['reid_embeddings_dir'] is not None and self.dataset_params['node_embeddings_dir'] is not None
 
-        bbox_dataset = BoundingBoxDataset(self.det_df, seq_info_dict=self.det_df.seq_info_dict, return_det_ids_and_frame = True)
-        bbox_loader = DataLoader(bbox_dataset, batch_size=self.dataset_params['img_batch_size'], pin_memory=True,
-                                 num_workers=4)
-
-        # Feed all bboxes to the CNN to obtain node and reid embeddings
-        t = time()
-        print(f"Computing embeddings for {len(bbox_dataset)} detections")
-        self.cnn_model.eval()
-        node_embeds, reid_embeds = [], []
-        frame_nums, det_ids = [], []
-        with torch.no_grad():
-            for frame_num, det_id, bboxes in bbox_loader:
-                node_out, reid_out = self.cnn_model(bboxes.cuda())
-                node_embeds.append(node_out.cpu())
-                reid_embeds.append(reid_out.cpu())
-                frame_nums.append(frame_num)
-                det_ids.append(det_id)
-        #print("IT TOOK ", time() - t)
-        print(f"Finished computing embeddings")
-
-        det_ids = torch.cat(det_ids, dim=0)
-        frame_nums = torch.cat(frame_nums, dim=0)
-
-        node_embeds = torch.cat(node_embeds, dim=0)
-        reid_embeds = torch.cat(reid_embeds, dim=0)
-
-        # Add detection ids as first column of embeddings, to ensure that embeddings are loaded correctly
-        node_embeds = torch.cat((det_ids.view(-1, 1).float(), node_embeds), dim=1)
-        reid_embeds = torch.cat((det_ids.view(-1, 1).float(), reid_embeds), dim=1)
-
         # Create dirs to store embeddings
         node_embeds_path = osp.join(self.det_df.seq_info_dict['seq_path'], 'processed_data/embeddings',
                                    self.det_df.seq_info_dict['det_file_name'], self.dataset_params['node_embeddings_dir'])
@@ -295,19 +276,66 @@ class MOTSeqProcessor:
         os.makedirs(node_embeds_path)
         os.makedirs(reid_embeds_path)
 
-        # Save embeddings grouped by frame
-        for frame in self.det_df.frame.unique():
-            mask = frame_nums == frame
-            frame_node_embeds = node_embeds[mask]
-            frame_reid_embeds = reid_embeds[mask]
+        # Compute and store embeddings
+        # If there are more than 100k detections, we split the df into smaller dfs avoid running out of RAM, as it
+        # requires storing all embedding into RAM (~6 GB for 100k detections)
 
-            frame_node_embeds_path = osp.join(node_embeds_path, f"{frame}.pt")
-            frame_reid_embeds_path = osp.join(reid_embeds_path, f"{frame}.pt")
+        print(f"Computing embeddings for {self.det_df.shape[0]} detections")
 
-            torch.save(frame_node_embeds, frame_node_embeds_path)
-            torch.save(frame_reid_embeds, frame_reid_embeds_path)
+        num_dets = self.det_df.shape[0]
+        max_dets_per_df = int(1e5) # Needs to be larger than the maximum amount of dets possible to have in one frame
 
-        print("Finished storing embeddings")
+        frame_cutpoints = [self.det_df.frame.iloc[i] for i in np.arange(0, num_dets , max_dets_per_df, dtype=int)]
+        frame_cutpoints += [self.det_df.frame.iloc[-1] + 1]
+
+        for frame_start, frame_end in zip(frame_cutpoints[:-1], frame_cutpoints[1:]):
+            sub_df_mask = self.det_df.frame.between(frame_start, frame_end - 1)
+            sub_df = self.det_df.loc[sub_df_mask]
+
+            #print(sub_df.frame.min(), sub_df.frame.max())
+            bbox_dataset = BoundingBoxDataset(sub_df, seq_info_dict=self.det_df.seq_info_dict,
+                                              return_det_ids_and_frame = True)
+            bbox_loader = DataLoader(bbox_dataset, batch_size=self.dataset_params['img_batch_size'], pin_memory=True,
+                                     num_workers=4)
+
+            # Feed all bboxes to the CNN to obtain node and reid embeddings
+            self.cnn_model.eval()
+            node_embeds, reid_embeds = [], []
+            frame_nums, det_ids = [], []
+            with torch.no_grad():
+                for frame_num, det_id, bboxes in bbox_loader:
+                    node_out, reid_out = self.cnn_model(bboxes.cuda())
+                    node_embeds.append(node_out.cpu())
+                    reid_embeds.append(reid_out.cpu())
+                    frame_nums.append(frame_num)
+                    det_ids.append(det_id)
+            #print("IT TOOK ", time() - t)
+            #print(f"Finished computing embeddings")
+
+            det_ids = torch.cat(det_ids, dim=0)
+            frame_nums = torch.cat(frame_nums, dim=0)
+
+            node_embeds = torch.cat(node_embeds, dim=0)
+            reid_embeds = torch.cat(reid_embeds, dim=0)
+
+            # Add detection ids as first column of embeddings, to ensure that embeddings are loaded correctly
+            node_embeds = torch.cat((det_ids.view(-1, 1).float(), node_embeds), dim=1)
+            reid_embeds = torch.cat((det_ids.view(-1, 1).float(), reid_embeds), dim=1)
+
+            # Save embeddings grouped by frame
+            for frame in sub_df.frame.unique():
+                mask = frame_nums == frame
+                frame_node_embeds = node_embeds[mask]
+                frame_reid_embeds = reid_embeds[mask]
+
+                frame_node_embeds_path = osp.join(node_embeds_path, f"{frame}.pt")
+                frame_reid_embeds_path = osp.join(reid_embeds_path, f"{frame}.pt")
+
+                torch.save(frame_node_embeds, frame_node_embeds_path)
+                torch.save(frame_reid_embeds, frame_reid_embeds_path)
+
+            #print("Finished storing embeddings")
+        print("Finished computing and storing embeddings")
 
     def process_detections(self):
         # See class header
@@ -351,5 +379,7 @@ class MOTSeqProcessor:
         else:
             print(f'Detections for sequence {self.seq_name} need to be processed. Starting processing')
             seq_det_df = self.process_detections()
+
+        seq_det_df.seq_info_dict['seq_path'] = seq_path
 
         return seq_det_df

@@ -119,6 +119,7 @@ def load_precomputed_embeddings(det_df, seq_info_dict, embeddings_dir, use_cuda)
     # Retrieve the embeddings we need from their corresponding locations
     embeddings_path = osp.join(seq_info_dict['seq_path'], 'processed_data', 'embeddings', seq_info_dict['det_file_name'],
                                embeddings_dir)
+    #print("EMBEDDINGS PATH IS ", embeddings_path)
     frames_to_retrieve = sorted(det_df.frame.unique())
     embeddings_list = [torch.load(osp.join(embeddings_path, f"{frame_num}.pt")) for frame_num in frames_to_retrieve]
     embeddings = torch.cat(embeddings_list, dim=0)

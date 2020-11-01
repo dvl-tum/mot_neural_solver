@@ -1,0 +1,13 @@
+dataset_dir: MOT20/train
+
+train_params:
+  num_epochs: 27
+  batch_size: 2
+  start_ckpt: trained_models/frcnn/frcnn_epoch_27.pt.tar
+  save_only_last_ckpt: True
+
+
+optimizer_params:
+  lr: 0.00001
+  momentum: 0.9
+  weight_decay: 0.0005

@@ -13,8 +13,8 @@ from tracktor.tracker import Tracker
 
 from mot_neural_solver.path_cfg import OUTPUT_PATH
 
-from mot_neural_solver.data.seq_processing.MOT17loader import MOV_CAMERA_DICT as MOT17_MOV_CAMERA_DICT
-from mot_neural_solver.data.seq_processing.MOT15loader import MOV_CAMERA_DICT as MOT15_MOV_CAMERA_DICT
+from mot_neural_solver.data.seq_processing.MOTCha_loader import MOV_CAMERA_DICT as MOT17_MOV_CAMERA_DICT
+from mot_neural_solver.data.seq_processing.MOT15_loader import MOV_CAMERA_DICT as MOT15_MOV_CAMERA_DICT
 from mot_neural_solver.data.preprocessing import FRCNNPreprocessor
 
 from mot_neural_solver.utils.misc import make_deterministic
@@ -64,7 +64,7 @@ def main(dataset_names,  prepr_w_tracktor, frcnn_prepr_params,  tracktor_params,
             if prepr_w_tracktor:
                 preprocessor.do_align = tracktor_params['tracker']['do_align'] and (MOV_CAMERA_DICT[str(seq)])
 
-            data_loader = DataLoader(seq, batch_size=1, shuffle=False, num_workers=8, pin_memory=True)
+            data_loader = DataLoader(seq, batch_size=1, shuffle=False, num_workers=6, pin_memory=True)
             for i, frame in enumerate(tqdm(data_loader)):
                 with torch.no_grad():
                     preprocessor.step(frame)
@@ -76,10 +76,10 @@ def main(dataset_names,  prepr_w_tracktor, frcnn_prepr_params,  tracktor_params,
             output_file_path = osp.join(seq.seq_path, 'det', prepr_params['det_file_name'])
             if prepr_w_tracktor:
                 results = preprocessor.get_results()
-                seq.write_results(results, output_file_path)
+                #seq.write_results(results, output_file_path)
             else:
                 _log.info(f"Writing predictions in: {output_file_path}")
-                preprocessor.save_results(output_file_path)
+                #preprocessor.save_results(output_file_path)
 
         _log.info(f"Tracking runtime for all sequences (without evaluation or image writing): "
                   f"{time_total:.1f} s ({num_frames / time_total:.1f} Hz)")

@@ -8,7 +8,7 @@ import pandas as pd
 from sacred import Experiment
 
 ex = Experiment()
-ex.add_config('configs/tracking_config.yaml')
+ex.add_config('configs/tracking_cfg.yaml')
 ex.add_config({'run_id': ''})
 
 

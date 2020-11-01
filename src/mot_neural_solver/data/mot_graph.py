@@ -5,10 +5,9 @@ import numpy as np
 
 from mot_neural_solver.data.augmentation import MOTGraphAugmentor
 
-from mot_neural_solver.utils.graph import get_time_valid_conn_ixs, get_knn_mask, \
-    compute_edge_feats_dict, construct_net_flow_id_matrix
+from mot_neural_solver.utils.graph import get_time_valid_conn_ixs, get_knn_mask, compute_edge_feats_dict
 from mot_neural_solver.utils.rgb import load_embeddings_from_imgs, load_precomputed_embeddings
-
+from torch_scatter import scatter_min
 from torch_geometric.data import Data
 
 class Graph(Data):
@@ -189,6 +188,19 @@ class MOTGraph(object):
         edge_ixs = get_time_valid_conn_ixs(frame_num = torch.from_numpy(self.graph_df.frame.values),
                                            max_frame_dist = self.max_frame_dist, use_cuda=self.inference_mode and self.graph_df['frame_path'].iloc[0].find('MOT17-03') == -1)
 
+        edge_feats_dict = None
+        if 'max_feet_vel' in self.dataset_params and self.dataset_params['max_feet_vel'] is not None: # New parameter. We do graph pruning based on feet velocity
+            #print("VELOCITY PRUNING")
+            edge_feats_dict = compute_edge_feats_dict(edge_ixs=edge_ixs, det_df=self.graph_df,
+                                                      fps=self.seq_info_dict['fps'],
+                                                      use_cuda=self.inference_mode)
+
+            feet_vel = torch.sqrt(edge_feats_dict['norm_feet_x_dists']**2 + edge_feats_dict['norm_feet_y_dists']**2)
+            vel_mask = feet_vel < self.dataset_params['max_feet_vel']
+            edge_ixs = edge_ixs.T[vel_mask].T
+            for feat_name, feat_vals in edge_feats_dict.items():
+                edge_feats_dict[feat_name] = feat_vals[vel_mask]
+
         # During inference, top k nns must not be done here, as it is computed independently for sequence chunks
         if not self.inference_mode and self.dataset_params['top_k_nns'] is not None:
             reid_pwise_dist = F.pairwise_distance(reid_embeddings[edge_ixs[0]], reid_embeddings[edge_ixs[1]])
@@ -200,18 +212,46 @@ class MOTGraph(object):
                                       symmetric_edges = False,
                                       use_cuda=self.inference_mode)
             edge_ixs = edge_ixs.T[k_nns_mask].T
+            if edge_feats_dict is not None:
+                for feat_name, feat_vals in edge_feats_dict.items():
+                    edge_feats_dict[feat_name] = feat_vals[k_nns_mask]
 
-        return edge_ixs
+
+        return edge_ixs, edge_feats_dict
 
     def assign_edge_labels(self):
         """
         Assigns self.graph_obj edge labels (tensor with shape (num_edges,)), with labels defined according to the
         network flow MOT formulation
         """
-        labels_mat = construct_net_flow_id_matrix(self.graph_df)
-        labels_mat = torch.from_numpy(labels_mat).float().to(self.graph_obj.device())
 
-        self.graph_obj.edge_labels = labels_mat[self.graph_obj.edge_index[0], self.graph_obj.edge_index[1]]
+        ids = torch.as_tensor(self.graph_df.id.values, device=self.graph_obj.edge_index.device)
+        per_edge_ids = torch.stack([ids[self.graph_obj.edge_index[0]], ids[self.graph_obj.edge_index[1]]])
+        same_id = (per_edge_ids[0] == per_edge_ids[1]) & (per_edge_ids[0] != -1)
+        same_ids_ixs = torch.where(same_id)
+        same_id_edges = self.graph_obj.edge_index.T[same_id].T
+
+        time_dists = torch.abs(same_id_edges[0] - same_id_edges[1])
+
+        # For every node, we get the index of the node in the future (resp. past) with the same id that is closest in time
+        future_mask = same_id_edges[0] < same_id_edges[1]
+        active_fut_edges = scatter_min(time_dists[future_mask], same_id_edges[0][future_mask], dim=0, dim_size=self.graph_obj.num_nodes)[1]
+        original_node_ixs = torch.cat((same_id_edges[1][future_mask], torch.as_tensor([-1], device = same_id.device))) # -1 at the end for nodes that were not present
+        active_fut_edges = original_node_ixs[active_fut_edges] # Recover the node id of the corresponding
+        fut_edge_is_active = active_fut_edges[same_id_edges[0]] == same_id_edges[1]
+
+        # Analogous for past edges
+        past_mask = same_id_edges[0] > same_id_edges[1]
+        active_past_edges = scatter_min(time_dists[past_mask], same_id_edges[0][past_mask], dim = 0, dim_size=self.graph_obj.num_nodes)[1]
+        original_node_ixs = torch.cat((same_id_edges[1][past_mask], torch.as_tensor([-1], device = same_id.device))) # -1 at the end for nodes that were not present
+        active_past_edges = original_node_ixs[active_past_edges]
+        past_edge_is_active = active_past_edges[same_id_edges[0]] == same_id_edges[1]
+
+        # Recover the ixs of active edges in the original edge_index tensor o
+        active_edge_ixs = same_ids_ixs[0][past_edge_is_active | fut_edge_is_active]
+        self.graph_obj.edge_labels = torch.zeros_like(same_id, dtype = torch.float)
+        self.graph_obj.edge_labels[active_edge_ixs] = 1
+
 
     def construct_graph_object(self):
         """
@@ -221,18 +261,23 @@ class MOTGraph(object):
         reid_embeddings, node_feats = self._load_appearance_data()
 
         # Determine graph connectivity (i.e. edges) and compute edge features
-        edge_ixs = self._get_edge_ixs(reid_embeddings)
-        edge_feats_dict = compute_edge_feats_dict(edge_ixs = edge_ixs, det_df = self.graph_df,
-                                                  fps = self.seq_info_dict['fps'],
-                                                  use_cuda = self.inference_mode)
+        edge_ixs, edge_feats_dict = self._get_edge_ixs(reid_embeddings)
+        #print(edge_ixs.shape)
+        if edge_feats_dict is None:
+            edge_feats_dict = compute_edge_feats_dict(edge_ixs = edge_ixs, det_df = self.graph_df,
+                                                      fps = self.seq_info_dict['fps'],
+                                                      use_cuda = self.inference_mode)
         edge_feats = [edge_feats_dict[feat_names] for feat_names in self.dataset_params['edge_feats_to_use'] if feat_names in edge_feats_dict]
         edge_feats = torch.stack(edge_feats).T
-
+        #print("Edge features", edge_feats.shape)
         # Compute embeddings distances. Pairwise distance computation might create out of memmory errors, hence we batch it
         emb_dists = []
-        for i in range(0, edge_ixs[0].shape[0], 50000):
+
+        for i in range(0, edge_ixs.shape[1], 50000):
             emb_dists.append(F.pairwise_distance(reid_embeddings[edge_ixs[0][i:i + 50000]],
                                                  reid_embeddings[edge_ixs[1][i:i + 50000]]).view(-1, 1))
+
+
         emb_dists = torch.cat(emb_dists, dim=0)
 
         # Add embedding distances to edge features if needed
