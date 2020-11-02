@@ -150,7 +150,7 @@ class MOTGraph(object):
         """
         if self.inference_mode and not self.dataset_params['precomputed_embeddings']:
             assert self.cnn_model is not None
-            print("USING CNN FOR APPEARANCE")
+            # print("USING CNN FOR APPEARANCE")
             _, node_feats, reid_embeds = load_embeddings_from_imgs(det_df = self.graph_df,
                                                                     dataset_params = self.dataset_params,
                                                                     seq_info_dict = self.seq_info_dict,

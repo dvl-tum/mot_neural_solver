@@ -462,7 +462,7 @@ class MPNTracker:
                     #print("Start second if")
                     assign_ped_ids_ixs = sorted(np.where(detects_per_tracktor_id.ped_id.notnull())[0])
                     assign_ped_ids = detects_per_tracktor_id.iloc[assign_ped_ids_ixs]['ped_id']
-                    changes = np.where((assign_ped_ids[:-1] - assign_ped_ids[1:]) != 0)[0]
+                    changes = np.where((assign_ped_ids.values[:-1] - assign_ped_ids.values[1:]) != 0)[0]
                     # build_intervals
 
                     # Iterate over id switches among them in order to determines which intervals can be safely interpolated

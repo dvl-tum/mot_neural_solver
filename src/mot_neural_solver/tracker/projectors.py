@@ -155,7 +155,10 @@ class PuLPMinCostFlowSolver:
 
         # Add flow constraints and solve problem
         self._add_constraints()
-        self.m.solve()
+
+        solver = plp.LpSolverDefault
+        solver.msg = 0
+        self.m.solve(solver)
 
         self.graph.edge_preds = np.array([self.model_vars[edge].varValue for edge in self.edges])
 

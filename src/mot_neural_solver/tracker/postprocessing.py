@@ -27,15 +27,26 @@ class Postprocessor:
         traj_start_ends = self.traj_df.groupby('ped_id')['frame'].agg(['min', 'max'])
         for ped_id, (traj_start, traj_end) in traj_start_ends.iterrows():
             if ped_id != -1:
-                full_traj_df = pd.DataFrame(data=np.arange(traj_start, traj_end + 1), columns=['frame'])
-                partial_traj_df = reixed_traj_df.loc[ped_id].reset_index()
+                try:
+                    full_traj_df = pd.DataFrame(data=np.arange(traj_start, traj_end + 1), columns=['frame'])
+                    partial_traj_df = reixed_traj_df.loc[ped_id].reset_index()
 
-                # Interpolate bb centers, heights and widths
-                full_traj_df = pd.merge(full_traj_df,
-                                        partial_traj_df[['ped_id', 'frame', 'mid_x', 'mid_y', 'bb_height', 'bb_width']],
-                                        how='left', on='frame')
-                full_traj_df = full_traj_df.sort_values(by='frame').interpolate()
-                full_traj_dfs.append(full_traj_df)
+                    # Interpolate bb centers, heights and widths
+                    full_traj_df = pd.merge(full_traj_df,
+                                            partial_traj_df[['ped_id', 'frame', 'mid_x', 'mid_y', 'bb_height', 'bb_width']],
+                                            how='left', on='frame')
+                    full_traj_df = full_traj_df.sort_values(by='frame').interpolate()
+                    full_traj_dfs.append(full_traj_df)
+                except:
+                    full_traj_df = pd.DataFrame(data=np.arange(traj_start, traj_end + 1), columns=['frame'])
+                    partial_traj_df = reixed_traj_df.loc[[ped_id]].reset_index()
+
+                    # Interpolate bb centers, heights and widths
+                    full_traj_df = pd.merge(full_traj_df,
+                                            partial_traj_df[['ped_id', 'frame', 'mid_x', 'mid_y', 'bb_height', 'bb_width']],
+                                            how='left', on='frame')
+                    full_traj_df = full_traj_df.sort_values(by='frame').interpolate()
+                    full_traj_dfs.append(full_traj_df)
 
         self.traj_df = pd.concat(full_traj_dfs)
 
