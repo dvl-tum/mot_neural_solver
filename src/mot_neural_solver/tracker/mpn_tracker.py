@@ -271,6 +271,8 @@ class MPNTracker:
 
         # Retrieve the complete scene DataFrame
         big_dets_df = self.dataset.seq_det_dfs[seq_name].copy()
+        if "tracktor_id" not in big_dets_df.columns:
+            big_dets_df["tracktor_id"] = big_dets_df["id"]
         complete_df = self.final_projected_output.merge(big_dets_df[
                                                             ['detection_id', 'tracktor_id', 'frame', 'bb_left',
                                                              'bb_top', 'bb_width', 'bb_height', 'bb_right',
