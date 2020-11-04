@@ -3,7 +3,7 @@ import os.path as osp
 
 import pandas as pd
 
-from torch_geometric.data import DataLoader
+#from torch_geometric.data import DataLoader
 
 import torch
 
@@ -20,6 +20,21 @@ from mot_neural_solver.path_cfg import OUTPUT_PATH
 from mot_neural_solver.utils.evaluation import compute_perform_metrics
 from mot_neural_solver.tracker.mpn_tracker import MPNTracker
 
+from torch.utils.data import DataLoader
+
+from torch_geometric.data import Batch
+def limit_size(batch):
+    accum_edges = 0
+    for i, graph in enumerate(batch, 1):
+        accum_edges += graph.num_edges
+        if accum_edges > 100000:
+            print(f"Over 100000 edges", accum_edges, i)
+            #break
+
+
+    #print(f"I could get {i} graphs!")
+    return batch[:i]
+collate_fn = lambda batch: Batch.from_data_list(limit_size(batch), [])
 
 class MOTNeuralSolver(pl.LightningModule):
     """
@@ -61,7 +76,8 @@ class MOTNeuralSolver(pl.LightningModule):
             train_dataloader = DataLoader(dataset,
                                           batch_size = self.hparams['train_params']['batch_size'],
                                           shuffle = True if mode == 'train' else False,
-                                          num_workers=self.hparams['train_params']['num_workers'])
+                                          num_workers=self.hparams['train_params']['num_workers'],
+                                          collate_fn=collate_fn)
             return train_dataloader
         
         elif return_data_loader and len(dataset) == 0:
