@@ -350,7 +350,7 @@ class MPNTracker:
         if output_path is not None:
             self._save_results_to_file(seq_df, output_path)
 
-        return constr_sr
+        return seq_df, constr_sr
 
     def _save_results_to_file(self, seq_df, output_file_path):
         """
