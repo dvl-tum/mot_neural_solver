@@ -150,7 +150,7 @@ class MOTNeuralSolver(pl.LightningModule):
                 print("Tracking sequence ", seq_name)
 
             os.makedirs(output_files_dir, exist_ok=True)
-            constraint_sr[seq_name] = tracker.track(seq_name, output_path=osp.join(output_files_dir, seq_name + '.txt'))
+            _, constraint_sr[seq_name] = tracker.track(seq_name, output_path=osp.join(output_files_dir, seq_name + '.txt'))
 
             if verbose:
                 print("Done! \n")
