@@ -76,10 +76,10 @@ def main(dataset_names,  prepr_w_tracktor, frcnn_prepr_params,  tracktor_params,
             output_file_path = osp.join(seq.seq_path, 'det', prepr_params['det_file_name'])
             if prepr_w_tracktor:
                 results = preprocessor.get_results()
-                #seq.write_results(results, output_file_path)
+                seq.write_results(results, output_file_path)
             else:
                 _log.info(f"Writing predictions in: {output_file_path}")
-                #preprocessor.save_results(output_file_path)
+                preprocessor.save_results(output_file_path)
 
         _log.info(f"Tracking runtime for all sequences (without evaluation or image writing): "
                   f"{time_total:.1f} s ({num_frames / time_total:.1f} Hz)")
