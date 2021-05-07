@@ -1,17 +1,17 @@
 # Learning a Neural Solver for Multiple Object Tracking
 
-This the official implementation of our **CVPR 2020 (oral)** paper *Learning a Neural Solver for Multiple Object Tracking* ([Guillem Brasó](https://dvl.in.tum.de/team/braso/), [Laura Leal-Taixe](https://dvl.in.tum.de/team/lealtaixe/))  
+This the official implementation of our **CVPR 2020 (oral)** paper *Learning a Neural Solver for Multiple Object Tracking* ([Guillem Brasó](https://dvl.in.tum.de/team/braso/), [Laura Leal-Taixe](https://dvl.in.tum.de/team/lealtaixe/))
 [[Paper]](https://arxiv.org/abs/1912.07515)[[Youtube]](https://www.youtube.com/watch?v=YWEirYMaLWc)[[CVPR Daily]](https://www.rsipvision.com/ComputerVisionNews-2020July/55/)
 ![Method Visualization](data/pipeline_viz.png)
 
 ## Updates
-- (November 2020) Added support for [MOT20](https://motchallenge.net/data/MOT20/) (including [Tracktor](https://arxiv.org/abs/1903.05625) object detector fine-tuning) and processing long sequences, solved issues with OOM errors.  
+- (November 2020) Added support for [MOT20](https://motchallenge.net/data/MOT20/) (including [Tracktor](https://arxiv.org/abs/1903.05625) object detector fine-tuning) and processing long sequences, solved issues with OOM errors.
 - (June 2020) Code release.
 ## Setup
 
 1. Clone and enter this repository:
    ```
-   git clone --recursive https://github.com/dvl-tum/mot_neural_solver.git 
+   git clone --recursive https://github.com/dvl-tum/mot_neural_solver.git
    cd mot_neural_solver
    ```
 2. Create an [Anaconda environment](https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html) for this project:
@@ -35,7 +35,7 @@ named `data` and `output`, respectively.
     ```
     bash scripts/setup/download_prepr_dets.sh
     ```
-7. (**NEW**) If you are going to be working with [MOT20](https://motchallenge.net/data/MOT20/), run the following to 
+7. (**NEW**) If you are going to be working with [MOT20](https://motchallenge.net/data/MOT20/), run the following to
 download the dataset, preprocessed detections, and pretrained models:
     ```
     bash scripts/setup/download_mot20.sh
@@ -79,12 +79,12 @@ If you use the second option **(2)**, make sure to set add the [named configurat
 to your training and evaluation experiments by adding `with configs/no_tracktor_cfg.yaml` after your python command.
 
 ## Fine-Tuning Tracktor
-In order to obtain results for `MOT20`, we fine-tuned [Tracktor](https://arxiv.org/abs/1903.05625) on it. 
+In order to obtain results for `MOT20`, we fine-tuned [Tracktor](https://arxiv.org/abs/1903.05625) on it.
 To do so, we borrowed all code from [this Colab Notebook](https://colab.research.google.com/drive/1_arNo-81SnqfbdtAhb3TBSU5H0JXQ0_1), which
-was made public in [Tracktor's  repository](https://github.com/phil-bergmann/tracking_wo_bnw), and organized it 
+was made public in [Tracktor's  repository](https://github.com/phil-bergmann/tracking_wo_bnw), and organized it
 under `obj_detect` and a python script. You can reproduce the fine-tuning of the model we provide in step 7 of [Setup](#Setup) by running:
 ```
-python scripts/train_obj_detect.py 
+python scripts/train_obj_detect.py
 ```
 As a sanity check, we made a submission to the `MOT20` test dataset with this model, and obtained the following results.
 For reference, we include the comparison with the results made public by Tracktor's authors on the [CVPR19 Tracking Challenge](https://motchallenge.net/results/CVPR_2019_Tracking_Challenge/),
@@ -92,14 +92,14 @@ and our *MOT Neural Solver* built on top of the fine-tuned Tracktor.
 
 |   Dataset     |Method     | MOTA         | IDF1           |            MT              |     ML       |
 |  :---:    | :---:        |   :---:        |     :---:           |   :---:             |  :---:       |
-| **CVPR19 Challenge** |Tracktor++     |     51.3     |     47.6      |   313 (24.9%)      |     326 (26.0%)     | 
+| **CVPR19 Challenge** |Tracktor++     |     51.3     |     47.6      |   313 (24.9%)      |     326 (26.0%)     |
 | **MOT20**  |     Tracktor with no ReID, fine-tuned by us     |52.1     |      44.0         |     362(29.1%)     |  332 (26.7%) |
 | **MOT20**  |     Ours (MPNTrack)     |     57.6     |     59.1     |   474 (38.2%)     |  279 (22.5%) |
 
 ## Training
 You can train a model by running:
 ```
-python scripts/train.py 
+python scripts/train.py
 ```
 By default, sequences `MOT17-04` and `MOT17-11` will be used for validation, and all remaining sequences in the `MOT15`
 and `MOT17` datasets will be used for training. You can use other validation sets by
@@ -110,8 +110,8 @@ In order to train with all available sequences, and reproduce the training of th
 python scripts/train.py with data_splits.train=all_train train_params.save_every_epoch=True train_params.num_epochs=6
 ```
 
-For training a model on the `MOT20` dataset, you need to use its  [named configuration](https://sacred.readthedocs.io/en/stable/configuration.html#named-configurations) 
-`configs/mot20/tracking_cfg.yaml`. For instance, to reproduce the training of the `MOT20` model we provide run the 
+For training a model on the `MOT20` dataset, you need to use its  [named configuration](https://sacred.readthedocs.io/en/stable/configuration.html#named-configurations)
+`configs/mot20/tracking_cfg.yaml`. For instance, to reproduce the training of the `MOT20` model we provide run the
 following:
 ```
 python scripts/train.py with configs/mot20/tracking_cfg.yaml train_params.save_every_epoch=True train_params.num_epochs=22
@@ -132,7 +132,7 @@ and training for 232 epochs. The training script will be provided in a future re
 ## Evaluation
 You can evaluate a trained model on a set of sequences by running:
 ```
-python scripts/evaluate.py 
+python scripts/evaluate.py
 ```
 The weights used and sequences tested are determined by parameters `ckpt_path` and `data_splits.test`, respectively. By default, the weights from the model we provide will be used and the `MOT15` and `MOT17` test sequences will be evaluated. The resulting output files yield the following `MOT17` metrics on the train/test set:
 
@@ -146,7 +146,7 @@ and MOTA has decreased by 0.4 points. This change is due to using a newer pytorc
 
 In order to evaluate a model on the `MOT20` dataset, run the following:
 ```
-python scripts/evaluate.py with configs/mot20/tracking_cfg.py 
+python scripts/evaluate.py with configs/mot20/tracking_cfg.yaml
 ```
 The resulting output files yield the following `MOT20` train and test performance
 
@@ -155,7 +155,7 @@ The resulting output files yield the following `MOT20` train and test performanc
 | **Train** |     70.1     |     66.9       |    38260      |   299110   |     1821      |     1073 (48.4%)     |  362  (10.8%)|
 | **Test**  |     57.6     |     59.1       |    16953     | 201384     |     1210     |     474 (38.2%)     |  279 (22.5%) |
 
- 
+
 ## Cross-Validation
 As explained in the paper, we perform cross-validation to report the metrics of ablation experiments.
 To do so, we divide `MOT17` sequences in 3 sets of train/val splits. For every configuration, we then run
