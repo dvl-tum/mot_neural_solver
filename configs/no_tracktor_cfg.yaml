@@ -8,10 +8,10 @@ dataset_params:
   frames_per_graph: 25 # Maximum number of frames contained in each graph sampled graph
   max_detects: 800 # Maximum number of detections allowed
   top_k_nns: 70  # Top K-nearest neighbors (w.r.t reid score) to which a node can be  connected in the graph
-
-eval_params:
-  add_tracktor_detects: False
-
+  
   target_fps_dict: # Frame sampling rate for sequences with static/moving camera
     moving: 15
     static: 10
+
+eval_params:
+  add_tracktor_detects: False
