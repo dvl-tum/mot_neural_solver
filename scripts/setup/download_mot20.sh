@@ -3,7 +3,7 @@
 # Download MOT20 dataset
 DATA_PATH=$(python -c "from mot_neural_solver.path_cfg import DATA_PATH; print(DATA_PATH)")
 wget -P $DATA_PATH https://motchallenge.net/data/MOT20.zip
-unzip -d $DATA_PATH/MOT17Labels $DATA_PATH/MOT20.zip
+unzip -d $DATA_PATH $DATA_PATH/MOT20.zip
 rm $DATA_PATH/MOT20.zip
 
 # Download tracktor preprocessed detections for MOT20
